@@ -267,7 +267,7 @@ struct HfCandidateSelectorToOmegaKa {
     }
 
     // check that the candidate pT is within the analysis range
-    if (pionPtFromOmegaKa < cuts->get(pTBin, "pT pi from OmegaKa")) {
+    if (KaPtFromOmegaKa < cuts->get(pTBin, "pT ka from OmegaKa")) {
       registry.fill(HIST("hSelPtKaFromCharm"), 0);
       return false;
     } else {
