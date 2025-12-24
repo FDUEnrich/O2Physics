@@ -410,12 +410,12 @@ struct HfTreeCreatorOmegacSt {
   bool isMatched = false;
   static constexpr std::size_t NDaughters{2u};
   const CHANNEL_TYPES = {
-  ANY: 0,
-  XIC_TO_XI_PI: 1,
-  XIC_TO_OMEGA_KA: 2,
-  OMEGAC_TO_OMEGA_PI: 3,
-  OMEGAC_TO_OMEGA_KA: 4,
-  OMEGAC_TO_XI_PI: 5
+    ANY : 0,
+    XIC_TO_XI_PI : 1,
+    XIC_TO_OMEGA_KA : 2,
+    OMEGAC_TO_OMEGA_PI : 3,
+    OMEGAC_TO_OMEGA_KA : 4,
+    OMEGAC_TO_XI_PI : 5
   };
 
   void processMc(aod::McCollisions const&,
