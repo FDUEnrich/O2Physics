@@ -86,7 +86,8 @@ struct HfTaskCharmHadronsTrackFemtoDream {
   enum DecayChannel { DplusToPiKPi = 0,
                       LcToPKPi,
                       D0ToPiK,
-                      DstarToD0Pi
+                      DstarToD0Pi,
+                      XicToXiPiPi
   };
 
   constexpr static int OriginRecPrompt = 1;
@@ -289,11 +290,11 @@ struct HfTaskCharmHadronsTrackFemtoDream {
 
   void init(InitContext& /*context*/)
   {
-    std::array<bool, 8> processes = {doprocessDataLcTrk, doprocessDataDplusTrk, doprocessDataD0Trk, doprocessDataDstarTrk, doprocessMcLcTrk, doprocessMcDplusTrk, doprocessMcD0Trk, doprocessMcDstarTrk};
+    std::array<bool, 12> processes = {doprocessDataLcTrk, doprocessDataDplusTrk, doprocessDataD0Trk, doprocessDataDstarTrk, doprocessDataXicTrk, doprocessDataXicKfTrk, doprocessMcLcTrk, doprocessMcDplusTrk, doprocessMcD0Trk, doprocessMcDstarTrk, doprocessMcXicTrk, doprocessMcXicKfTrk};
     if (std::accumulate(processes.begin(), processes.end(), 0) != 1) {
       LOGP(fatal, "One and only one process function must be enabled at a time.");
     }
-    bool process3Prong = doprocessDataLcTrk || doprocessDataDplusTrk || doprocessMcLcTrk || doprocessMcDplusTrk;
+    bool process3Prong = doprocessDataLcTrk || doprocessDataDplusTrk || doprocessMcLcTrk || doprocessMcDplusTrk || doprocessDataXicTrk || doprocessDataXicKfTrk || doprocessMcXicTrk || doprocessMcXicKfTrk;
     bool process2Prong = doprocessDataD0Trk || doprocessMcD0Trk;
     bool processDstar = doprocessDataDstarTrk || doprocessMcDstarTrk;
 
@@ -387,6 +388,9 @@ struct HfTaskCharmHadronsTrackFemtoDream {
       } else {
         return mDstar - mD0;
       }
+    } else if constexpr (Channel == DecayChannel::XicToXiPiPi) {
+      // Prongs are Ξ, π, π (momenta from HfCandXic / producer); masses for 3-body Ξc+ → Ξ− π+ π+ hypothesis
+      return cand.m(std::array{MassXiMinus, MassPiPlus, MassPiPlus});
     }
     // Add more channels as needed
     return 0.f;
@@ -433,8 +437,8 @@ struct HfTaskCharmHadronsTrackFemtoDream {
       return static_cast<float>(RecoDecay::m(pVecCharmTrk, massCharmTrk));
     }
 
-    // 3-prong：Λc → p K π, D+ → π K π + track
-    if constexpr (Channel == DecayChannel::LcToPKPi || Channel == DecayChannel::DplusToPiKPi || Channel == DecayChannel::DstarToD0Pi) {
+    // 3-prong：Λc → p K π, D+ → π K π, D* daughters + track, Ξc+ → Ξ π π + track
+    if constexpr (Channel == DecayChannel::LcToPKPi || Channel == DecayChannel::DplusToPiKPi || Channel == DecayChannel::DstarToD0Pi || Channel == DecayChannel::XicToXiPiPi) {
       auto pVecProng2 = RecoDecayPtEtaPhi::pVector(cand.prong2Pt(), cand.prong2Eta(), cand.prong2Phi());
       const auto pVecCharmTrk = std::array{pVecProng0, pVecProng1, pVecProng2, pVecTrack};
       std::array<double, 4> massCharmTrk{};
@@ -456,6 +460,8 @@ struct HfTaskCharmHadronsTrackFemtoDream {
         } else {
           massCharmTrk = {MassKPlus, MassPiPlus, MassPiPlus, trackMassHyp};
         }
+      } else if constexpr (Channel == DecayChannel::XicToXiPiPi) {
+        massCharmTrk = {MassXiMinus, MassPiPlus, MassPiPlus, trackMassHyp};
       }
 
       return static_cast<float>(RecoDecay::m(pVecCharmTrk, massCharmTrk));
@@ -487,7 +493,7 @@ struct HfTaskCharmHadronsTrackFemtoDream {
         }
       }
 
-      if constexpr (Channel == DecayChannel::LcToPKPi || Channel == DecayChannel::DplusToPiKPi) {
+      if constexpr (Channel == DecayChannel::LcToPKPi || Channel == DecayChannel::DplusToPiKPi || Channel == DecayChannel::XicToXiPiPi) {
         if (p1.trackId() == p2.prong0Id() || p1.trackId() == p2.prong1Id() || p1.trackId() == p2.prong2Id()) {
           continue;
         }
@@ -619,7 +625,7 @@ struct HfTaskCharmHadronsTrackFemtoDream {
           }
         }
 
-        if constexpr (Channel == DecayChannel::DplusToPiKPi || Channel == DecayChannel::LcToPKPi) {
+        if constexpr (Channel == DecayChannel::DplusToPiKPi || Channel == DecayChannel::LcToPKPi || Channel == DecayChannel::XicToXiPiPi) {
 
           if (pairQASetting.useCPR.value) {
             if (pairCloseRejectionME3Prong.isClosePair(p1, p2, parts, collision1.magField())) {
@@ -724,7 +730,7 @@ struct HfTaskCharmHadronsTrackFemtoDream {
 
       timeStamp = part.timeStamp();
 
-      if constexpr (Channel == DecayChannel::DplusToPiKPi || Channel == DecayChannel::LcToPKPi) {
+      if constexpr (Channel == DecayChannel::DplusToPiKPi || Channel == DecayChannel::LcToPKPi || Channel == DecayChannel::XicToXiPiPi) {
 
         rowFemtoResultCharm3Prong(
           col.globalIndex(),
@@ -992,6 +998,59 @@ struct HfTaskCharmHadronsTrackFemtoDream {
   }
   PROCESS_SWITCH(HfTaskCharmHadronsTrackFemtoDream, processDataDstarTrk, "Enable processing DstarToD0Pi and Tracks correlation", false);
 
+  void runDataXicCharmTrkFemto(FilteredCollisions const& cols, FilteredFDParticles const& parts)
+  {
+    for (const auto& col : cols) {
+      eventHisto.fillQA(col);
+      auto* partitionTrk1Selected = &partitionTrk1;
+      if (trackSel.pdgCodeTrack1.value == kKPlus) {
+        partitionTrk1Selected = &partitionTrk1Ka;
+      }
+      auto sliceTrk1 = partitionTrk1Selected->sliceByCached(aod::femtodreamparticle::fdCollisionId, col.globalIndex(), cache);
+      auto sliceCharmHad = partitionCharmHadron3Prong->sliceByCached(aod::femtodreamparticle::fdCollisionId, col.globalIndex(), cache);
+      if (fillTableWithCharm.value && sliceCharmHad.size() == 0) {
+        continue;
+      } else {
+        fillTables<false, DecayChannel::XicToXiPiPi>(col, sliceTrk1, sliceCharmHad);
+      }
+      if (sliceCharmHad.size() > 0 && sliceTrk1.size() > 0) {
+        doSameEvent<false, DecayChannel::XicToXiPiPi, FilteredCharmCand3Prongs>(sliceCharmHad, sliceTrk1, parts, col);
+      }
+    }
+    if (mixSetting.doMixEvent) {
+      switch (mixSetting.mixingBinPolicy) {
+        case femtodreamcollision::kMult:
+          doMixedEvent<false, DecayChannel::XicToXiPiPi, FilteredCollisions>(cols, partitionCharmHadron3Prong, partitionTrk1, parts, colBinningMult);
+          break;
+        case femtodreamcollision::kMultPercentile:
+          doMixedEvent<false, DecayChannel::XicToXiPiPi, FilteredCollisions>(cols, partitionCharmHadron3Prong, partitionTrk1, parts, colBinningMultPercentile);
+          break;
+        case femtodreamcollision::kMultMultPercentile:
+          doMixedEvent<false, DecayChannel::XicToXiPiPi, FilteredCollisions>(cols, partitionCharmHadron3Prong, partitionTrk1, parts, colBinningMultMultPercentile);
+          break;
+        default:
+          LOG(fatal) << "Invalid binning policiy specifed. Breaking...";
+      }
+    }
+  }
+
+  void processDataXicTrk(FilteredCollisions const& cols,
+                         FilteredFDParticles const& parts,
+                         FilteredCharmCand3Prongs const&)
+  {
+    runDataXicCharmTrkFemto(cols, parts);
+  }
+  PROCESS_SWITCH(HfTaskCharmHadronsTrackFemtoDream, processDataXicTrk, "XicToXiPiPi–track femto (use with non-KF or KF producer; same FD tables)", false);
+
+  void processDataXicKfTrk(FilteredCollisions const& cols,
+                           FilteredFDParticles const& parts,
+                           FilteredCharmCand3Prongs const&)
+  {
+    /// Same body as processDataXicTrk: enables a separate workflow switch when the producer used KFParticle (*Kf process).
+    runDataXicCharmTrkFemto(cols, parts);
+  }
+  PROCESS_SWITCH(HfTaskCharmHadronsTrackFemtoDream, processDataXicKfTrk, "Same as processDataXicTrk; enable this when Femto producer used *XicToXiPiPi*Kf", false);
+
   void processMcLcTrk(FilteredMcColisions const& cols,
                       FilteredFDMcParts const& parts,
                       o2::aod::FDMCParticles const&,
@@ -1061,6 +1120,57 @@ struct HfTaskCharmHadronsTrackFemtoDream {
     }
   }
   PROCESS_SWITCH(HfTaskCharmHadronsTrackFemtoDream, processMcDplusTrk, "Enable processing DplusToPiKPi and Tracks correlation for Monte Carlo", false);
+
+  void runMcXicCharmTrkFemto(FilteredMcColisions const& cols, FilteredFDMcParts const& parts)
+  {
+    for (const auto& col : cols) {
+      eventHisto.fillQA(col);
+      auto* partitionTrk1Selected = &partitionMcTrk1;
+      if (trackSel.pdgCodeTrack1.value == kKPlus) {
+        partitionTrk1Selected = &partitionMcTrk1Ka;
+      }
+      auto sliceMcTrk1 = partitionTrk1Selected->sliceByCached(aod::femtodreamparticle::fdCollisionId, col.globalIndex(), cache);
+      auto sliceMcCharmHad = partitionMcCharmHadron3Prong->sliceByCached(aod::femtodreamparticle::fdCollisionId, col.globalIndex(), cache);
+      if ((col.bitmaskTrackOne() & bitMask) != bitMask || (col.bitmaskTrackTwo() & bitMask) != bitMask) {
+        continue;
+      }
+      doSameEvent<true, DecayChannel::XicToXiPiPi, FilteredCharmMcCand3Prongs>(sliceMcCharmHad, sliceMcTrk1, parts, col);
+    }
+    switch (mixSetting.mixingBinPolicy) {
+      case femtodreamcollision::kMult:
+        doMixedEvent<true, DecayChannel::XicToXiPiPi, FilteredMcColisions>(cols, partitionMcCharmHadron3Prong, partitionMcTrk1, parts, colBinningMult);
+        break;
+      case femtodreamcollision::kMultPercentile:
+        doMixedEvent<true, DecayChannel::XicToXiPiPi, FilteredMcColisions>(cols, partitionMcCharmHadron3Prong, partitionMcTrk1, parts, colBinningMultPercentile);
+        break;
+      case femtodreamcollision::kMultMultPercentile:
+        doMixedEvent<true, DecayChannel::XicToXiPiPi, FilteredMcColisions>(cols, partitionMcCharmHadron3Prong, partitionMcTrk1, parts, colBinningMultMultPercentile);
+        break;
+      default:
+        LOG(fatal) << "Invalid binning policiy specifed. Breaking...";
+    }
+  }
+
+  void processMcXicTrk(FilteredMcColisions const& cols,
+                       FilteredFDMcParts const& parts,
+                       o2::aod::FDMCParticles const&,
+                       o2::aod::FDExtMCParticles const&,
+                       FilteredCharmMcCand3Prongs const&)
+  {
+    runMcXicCharmTrkFemto(cols, parts);
+  }
+  PROCESS_SWITCH(HfTaskCharmHadronsTrackFemtoDream, processMcXicTrk, "Enable processing XicToXiPiPi and track correlation for Monte Carlo", false);
+
+  void processMcXicKfTrk(FilteredMcColisions const& cols,
+                         FilteredFDMcParts const& parts,
+                         o2::aod::FDMCParticles const&,
+                         o2::aod::FDExtMCParticles const&,
+                         FilteredCharmMcCand3Prongs const&)
+  {
+    /// Same as processMcXicTrk: separate switch when the Femto producer used *XicToXiPiPi*Kf.
+    runMcXicCharmTrkFemto(cols, parts);
+  }
+  PROCESS_SWITCH(HfTaskCharmHadronsTrackFemtoDream, processMcXicKfTrk, "Same as processMcXicTrk; enable when Femto producer used *XicToXiPiPi*Kf (MC)", false);
 
   void processMcD0Trk(FilteredMcColisions const& cols,
                       FilteredFDMcParts const& parts,
