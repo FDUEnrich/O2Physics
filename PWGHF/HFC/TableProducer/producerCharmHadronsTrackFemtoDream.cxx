@@ -113,8 +113,6 @@ enum class D0CandFlag : uint8_t {
 
 struct HfProducerCharmHadronsTrackFemtoDream {
 
-  /// Single aggregate for all Produces: lowers top-level task member count for adaptAnalysisTask (O2 DPL); table definitions unchanged.
-  struct {
   Produces<aod::FDCollisions> outputCollision;
   Produces<aod::FDColMasks> rowMasks;
   Produces<aod::FDHfCand3Prong> rowCandCharm3Prong;
@@ -132,7 +130,6 @@ struct HfProducerCharmHadronsTrackFemtoDream {
   Produces<aod::FDMCLabels> outputPartsMcLabels;
   Produces<aod::FDExtMCParticles> outputDebugPartsMc;
   Produces<aod::FDExtMCLabels> outputPartsExtMcLabels;
-  } femtoProduces{};
 
   Configurable<std::string> ccdbUrl{"ccdbUrl", "http://alice-ccdb.cern.ch", "url of the ccdb repository"};
   Configurable<std::string> ccdbPathLut{"ccdbPathLut", "GLO/Param/MatLUT", "Path for LUT parametrization"};
@@ -435,7 +432,7 @@ struct HfProducerCharmHadronsTrackFemtoDream {
   template <typename ParticleType>
   void fillDebugParticle(ParticleType const& particle)
   {
-    femtoProduces.outputDebugParts(particle.sign(),
+    outputDebugParts(particle.sign(),
                      (uint8_t)particle.tpcNClsFound(),
                      particle.tpcNClsFindable(),
                      (uint8_t)particle.tpcNClsCrossedRows(),
@@ -511,16 +508,16 @@ struct HfProducerCharmHadronsTrackFemtoDream {
         particleOrigin = aod::femtodreamMCparticle::ParticleOriginMCTruth::kFake;
       }
 
-      femtoProduces.outputPartsMc(particleOrigin, pdgCode, particleMc.pt(), particleMc.eta(), particleMc.phi());
-      femtoProduces.outputPartsMcLabels(femtoProduces.outputPartsMc.lastIndex());
+      outputPartsMc(particleOrigin, pdgCode, particleMc.pt(), particleMc.eta(), particleMc.phi());
+      outputPartsMcLabels(outputPartsMc.lastIndex());
       if (isDebug) {
-        femtoProduces.outputPartsExtMcLabels(femtoProduces.outputPartsMc.lastIndex());
-        femtoProduces.outputDebugPartsMc(pdgCodeMother);
+        outputPartsExtMcLabels(outputPartsMc.lastIndex());
+        outputDebugPartsMc(pdgCodeMother);
       }
     } else {
-      femtoProduces.outputPartsMcLabels(-1);
+      outputPartsMcLabels(-1);
       if (isDebug) {
-        femtoProduces.outputPartsExtMcLabels(-1);
+        outputPartsExtMcLabels(-1);
       }
     }
   }
@@ -530,10 +527,10 @@ struct HfProducerCharmHadronsTrackFemtoDream {
   {
     if (col.has_mcCollision()) {
       // auto genMCcol = col.template mcCollision_as<FemtoFullMcgenCollisions>();
-      // femtoProduces.outputMcCollision(genMCcol.multMCNParticlesEta08());
-      femtoProduces.outputCollsMcLabels(femtoProduces.outputMcCollision.lastIndex());
+      // outputMcCollision(genMCcol.multMCNParticlesEta08());
+      outputCollsMcLabels(outputMcCollision.lastIndex());
     } else {
-      femtoProduces.outputCollsMcLabels(-1);
+      outputCollsMcLabels(-1);
     }
   }
 
@@ -558,14 +555,14 @@ struct HfProducerCharmHadronsTrackFemtoDream {
       auto bc = col.template bc_as<aod::BCsWithTimestamps>();
       int64_t timeStamp = bc.timestamp();
       // track global index
-      femtoProduces.outputPartsIndex(track.globalIndex());
-      femtoProduces.outputPartsTime(timeStamp);
+      outputPartsIndex(track.globalIndex());
+      outputPartsTime(timeStamp);
       // now the table is filled
 
       if (trkPDGCode == kKPlus) {
         const auto pidTrackPassBit = static_cast<aod::femtodreamparticle::cutContainerType>(isTrackKaonPidSelected(track));
 
-        femtoProduces.outputParts(femtoProduces.outputCollision.lastIndex(),
+        outputParts(outputCollision.lastIndex(),
                     track.pt(),
                     track.eta(),
                     track.phi(),
@@ -574,7 +571,7 @@ struct HfProducerCharmHadronsTrackFemtoDream {
                     pidTrackPassBit,
                     track.dcaXY(), childIDs, 0, 0);
       } else {
-        femtoProduces.outputParts(femtoProduces.outputCollision.lastIndex(),
+        outputParts(outputCollision.lastIndex(),
                     track.pt(),
                     track.eta(),
                     track.phi(),
@@ -634,18 +631,18 @@ struct HfProducerCharmHadronsTrackFemtoDream {
       return;
     }
 
-    femtoProduces.outputCollision(vtxZ, mult, multNtr, spher, magField);
+    outputCollision(vtxZ, mult, multNtr, spher, magField);
     if constexpr (IsMc) {
       fillMcCollision(col);
     }
 
     // Filling candidate properties
     if constexpr (Channel == DecayChannel::DplusToPiKPi || Channel == DecayChannel::LcToPKPi || Channel == DecayChannel::XicToXiPiPi) {
-      femtoProduces.rowCandCharm3Prong.reserve(sizeCand);
+      rowCandCharm3Prong.reserve(sizeCand);
     } else if constexpr (Channel == DecayChannel::D0ToPiK) {
-      femtoProduces.rowCandCharm2Prong.reserve(sizeCand);
+      rowCandCharm2Prong.reserve(sizeCand);
     } else if constexpr (Channel == DecayChannel::DstarToD0Pi) {
-      femtoProduces.rowCandCharmDstar.reserve(sizeCand);
+      rowCandCharmDstar.reserve(sizeCand);
     }
     bool isTrackFilled = false;
     bool isSelectedMlLcToPKPi = true;
@@ -689,8 +686,8 @@ struct HfProducerCharmHadronsTrackFemtoDream {
           const auto phi0 = static_cast<float>(RecoDecay::phi(candidate.pxProng0(), candidate.pyProng0()));
           const auto phi1 = static_cast<float>(RecoDecay::phi(candidate.pxProng1(), candidate.pyProng1()));
           const auto phi2 = static_cast<float>(RecoDecay::phi(candidate.pxProng2(), candidate.pyProng2()));
-          femtoProduces.rowCandCharm3Prong(
-            femtoProduces.outputCollision.lastIndex(),
+          rowCandCharm3Prong(
+            outputCollision.lastIndex(),
             timeStampXic,
             candidate.sign(),
             candidate.pi0Id(),
@@ -710,7 +707,7 @@ struct HfProducerCharmHadronsTrackFemtoDream {
             outputMlXic.at(1),
             outputMlXic.at(2));
           if constexpr (IsMc) {
-            femtoProduces.rowCandMcCharmHad(
+            rowCandMcCharmHad(
               candidate.flagMcMatchRec(),
               candidate.originMcRec());
           }
@@ -739,8 +736,8 @@ struct HfProducerCharmHadronsTrackFemtoDream {
         if (functionSelection >= 1) {
           if constexpr (Channel == DecayChannel::DplusToPiKPi || Channel == DecayChannel::LcToPKPi) {
             auto trackPos2 = candidate.template prong2_as<TrackType>();
-            femtoProduces.rowCandCharm3Prong(
-              femtoProduces.outputCollision.lastIndex(),
+            rowCandCharm3Prong(
+              outputCollision.lastIndex(),
               timeStamp,
               trackPos1.sign() + trackNeg.sign() + trackPos2.sign(),
               trackPos1.globalIndex(),
@@ -771,8 +768,8 @@ struct HfProducerCharmHadronsTrackFemtoDream {
             } else {
               LOG(error) << "Unexpected candFlag = " << candFlag;
             }
-            femtoProduces.rowCandCharm2Prong(
-              femtoProduces.outputCollision.lastIndex(),
+            rowCandCharm2Prong(
+              outputCollision.lastIndex(),
               timeStamp,
               signD0,
               trackPos1.globalIndex(),
@@ -789,8 +786,8 @@ struct HfProducerCharmHadronsTrackFemtoDream {
               bdtScoreFd);
           } else if constexpr (Channel == DecayChannel::DstarToD0Pi) {
             auto trackPos2 = candidate.template prongPi_as<TrackType>();
-            femtoProduces.rowCandCharmDstar(
-              femtoProduces.outputCollision.lastIndex(),
+            rowCandCharmDstar(
+              outputCollision.lastIndex(),
               timeStamp,
               candidate.template prongPi_as<TrackType>().sign(),
               trackPos1.globalIndex(),
@@ -812,7 +809,7 @@ struct HfProducerCharmHadronsTrackFemtoDream {
           }
 
           if constexpr (IsMc) {
-            femtoProduces.rowCandMcCharmHad(
+            rowCandMcCharmHad(
               candidate.flagMcMatchRec(),
               candidate.originMcRec());
           }
@@ -967,7 +964,7 @@ struct HfProducerCharmHadronsTrackFemtoDream {
       qaRegistry.fill(HIST("hEventQA"), 1 + Event::PairSelected);
     }
 
-    femtoProduces.rowMasks(bitTrack,
+    rowMasks(bitTrack,
              bitCand,
              0);
   }
@@ -992,11 +989,11 @@ struct HfProducerCharmHadronsTrackFemtoDream {
   void fillCharmHadMcGen(ParticleType particles)
   {
     // Filling particle properties
-    femtoProduces.rowCandCharmHadGen.reserve(particles.size());
+    rowCandCharmHadGen.reserve(particles.size());
     if constexpr (Channel == DecayChannel::DplusToPiKPi) {
       for (const auto& particle : particles) {
         if (std::abs(particle.flagMcMatchGen()) == hf_decay::hf_cand_3prong::DecayChannelMain::DplusToPiKPi) {
-          femtoProduces.rowCandCharmHadGen(
+          rowCandCharmHadGen(
             particle.mcCollisionId(),
             particle.flagMcMatchGen(),
             particle.originMcGen());
@@ -1005,7 +1002,7 @@ struct HfProducerCharmHadronsTrackFemtoDream {
     } else if constexpr (Channel == DecayChannel::LcToPKPi) {
       for (const auto& particle : particles) {
         if (std::abs(particle.flagMcMatchGen()) == hf_decay::hf_cand_3prong::DecayChannelMain::LcToPKPi) {
-          femtoProduces.rowCandCharmHadGen(
+          rowCandCharmHadGen(
             particle.mcCollisionId(),
             particle.flagMcMatchGen(),
             particle.originMcGen());
@@ -1014,7 +1011,7 @@ struct HfProducerCharmHadronsTrackFemtoDream {
     } else if constexpr (Channel == DecayChannel::D0ToPiK) {
       for (const auto& particle : particles) {
         if (std::abs(particle.flagMcMatchGen()) == hf_decay::hf_cand_2prong::DecayChannelMain::D0ToPiK) {
-          femtoProduces.rowCandCharmHadGen(
+          rowCandCharmHadGen(
             particle.mcCollisionId(),
             particle.flagMcMatchGen(),
             particle.originMcGen());
@@ -1023,7 +1020,7 @@ struct HfProducerCharmHadronsTrackFemtoDream {
     } else if constexpr (Channel == DecayChannel::DstarToD0Pi) {
       for (const auto& particle : particles) {
         if (std::abs(particle.flagMcMatchGen()) == hf_decay::hf_cand_dstar::DecayChannelMain::DstarToPiKPi) {
-          femtoProduces.rowCandCharmHadGen(
+          rowCandCharmHadGen(
             particle.mcCollisionId(),
             particle.flagMcMatchGen(),
             particle.originMcGen());
@@ -1034,7 +1031,7 @@ struct HfProducerCharmHadronsTrackFemtoDream {
         const int absFlag = std::abs(static_cast<int>(particle.flagMcMatchGen()));
         if (absFlag == (1 << o2::aod::hf_cand_xic_to_xi_pi_pi::DecayType::XicToXiPiPi) ||
             absFlag == (1 << o2::aod::hf_cand_xic_to_xi_pi_pi::DecayType::XicToXiResPiToXiPiPi)) {
-          femtoProduces.rowCandCharmHadGen(
+          rowCandCharmHadGen(
             particle.mcCollisionId(),
             particle.flagMcMatchGen(),
             particle.originMcGen());
